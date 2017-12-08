@@ -1,0 +1,150 @@
+---
+title: "STATS503_HW5"
+author: "Tong Tian"
+date: "2017/4/16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r problem1, warning=FALSE, message=FALSE}
+require(ggplot2)
+require(gridExtra)
+require(GGally)
+require(cluster)
+require(ggdendro)
+require(factoextra)
+require(reshape2)
+require(mclust)
+setwd("/Users/tong/Desktop/R")
+x=read.table("crabs.txt", header = T)
+y=x[,c(1,2)]
+x=as.data.frame(scale(x[,3:dim(x)[2]]))
+ggpairs(x)
+dis=dist(x)
+mds=as.data.frame(cmdscale(dis, k=2))
+ggplot(mds, aes(x=V2, y=V1)) + geom_point(alpha=0.6)
+
+hc_sing = agnes(x, diss=FALSE, method='single')
+hc_comp = agnes(x, diss=FALSE, method='complete')
+hc_ward = agnes(x, diss=FALSE, method='ward')
+hc_aver = agnes(x, diss=FALSE, method='average')
+a=ggdendrogram(as.dendrogram(hc_sing), leaf_labels=F, labels=F, theme_dendro = F)
+b=ggdendrogram(as.dendrogram(hc_comp), leaf_labels=F, labels=F, theme_dendro = F)
+c=ggdendrogram(as.dendrogram(hc_ward), leaf_labels=F, labels=F, theme_dendro = F)
+d=ggdendrogram(as.dendrogram(hc_aver), leaf_labels=F, labels=F, theme_dendro = F)
+grid.arrange(a, b, c, d, ncol=2)
+
+aver_sil=array(rep(0, 32), c(8, 4))
+for(i in seq(2,9)){
+  sil_sing = silhouette(cutree(hc_sing, k=i), dis)
+  sil_comp = silhouette(cutree(hc_comp, k=i), dis)
+  sil_ward = silhouette(cutree(hc_ward, k=i), dis)
+  sil_aver = silhouette(cutree(hc_aver, k=i), dis)
+  a=summary(sil_sing)
+  b=summary(sil_comp)
+  c=summary(sil_ward)
+  d=summary(sil_aver)
+  aver_sil[i-1,]=c(a$avg.width, b$avg.width, c$avg.width, d$avg.width)
+}
+aver_sil=cbind(seq(2,9), aver_sil)
+colnames(aver_sil)=c("x", "single", "complete", "ward", "average")
+aver_sil=melt(as.data.frame(aver_sil), id="x")
+ggplot(aver_sil, aes(x=x, y=value, color=variable))+geom_line()
+
+sil_sing = silhouette(cutree(hc_sing, k=5), dis)
+sil_comp = silhouette(cutree(hc_comp, k=5), dis)
+sil_ward = silhouette(cutree(hc_ward, k=5), dis)
+sil_aver = silhouette(cutree(hc_aver, k=5), dis)
+plot(sil_sing)
+plot(sil_comp)
+plot(sil_ward)
+plot(sil_aver)
+fviz_dend(hcut(x, k = 5, hc_method = "average"), show_labels = FALSE, rect = TRUE)
+fviz_cluster(hcut(x, k = 2, hc_method = "average"), ellipse.type = "norm", show.clust.cent = F)+theme_minimal()
+fviz_cluster(hcut(x, k = 3, hc_method = "average"), ellipse.type = "norm", show.clust.cent = F)+theme_minimal()
+fviz_cluster(hcut(x, k = 4, hc_method = "average"), ellipse.type = "norm", show.clust.cent = F)+theme_minimal()
+fviz_cluster(hcut(x, k = 5, hc_method = "average"), ellipse.type = "norm", show.clust.cent = F)+theme_minimal()
+
+
+
+
+aver_sil=array(rep(0, 32), c(8, 4))
+for(i in seq(2,9)){
+  set.seed(123)
+  kc = kmeans(x, i, iter.max=100, algorithm='Lloyd')
+  sil=silhouette(kc$cluster, dis)
+  a=summary(sil)
+  set.seed(2233)
+  kc = kmeans(x, i, iter.max=100, algorithm='Lloyd')
+  sil=silhouette(kc$cluster, dis)
+  b=summary(sil)
+  set.seed(558899)
+  kc = kmeans(x, i, iter.max=100, algorithm='Lloyd')
+  sil=silhouette(kc$cluster, dis)
+  c=summary(sil)
+  set.seed(345124)
+  kc = kmeans(x, i, iter.max=100, algorithm='Lloyd')
+  sil=silhouette(kc$cluster, dis)
+  d=summary(sil)
+  aver_sil[i-1,]=c(a$avg.width, b$avg.width, c$avg.width, d$avg.width)
+}
+aver_sil=cbind(seq(2,9), aver_sil)
+colnames(aver_sil)=c("x", "seed1", "seed2", "seed3", "seed4")
+aver_sil=melt(as.data.frame(aver_sil), id="x")
+ggplot(aver_sil, aes(x=x, y=value, color=variable))+geom_line()
+
+set.seed(345124)
+kc = kmeans(x, 5, iter.max=100, algorithm='Lloyd')
+sil=silhouette(kc$cluster, dis)
+plot(sil)
+fviz_cluster(kmeans(x, 2, iter.max=100, algorithm='Lloyd'), x, show.clust.cent = F, ellipse.type="norm")
+fviz_cluster(kmeans(x, 3, iter.max=100, algorithm='Lloyd'), x, show.clust.cent = F, ellipse.type="norm")
+fviz_cluster(kmeans(x, 4, iter.max=100, algorithm='Lloyd'), x, show.clust.cent = F, ellipse.type="norm")
+fviz_cluster(kc, x, show.clust.cent = F, ellipse.type="norm")
+grid.arrange(a,b,c,d,ncol=2)
+
+
+
+
+
+mx=Mclust(x, control = emControl(itmax = 100))
+print(c(mx$modelName, mx$G))
+plot(mx, "BIC")
+fviz_cluster(mx, show.clust.cent = F, ellipse.type="norm")
+a=silhouette(mx$classification, dis)
+print(summary(a)$avg.width)
+
+
+
+
+y=(y$Sex-1)*2+y$Species
+classes=as.data.frame(cbind(factor(y), mds))
+colnames(classes)=c("class", "x", "y")
+ggplot(classes, aes(x=x, y=y, color=class))+geom_point()
+mx=Mclust(x, G=4, control = emControl(itmax = 100))
+fviz_cluster(mx, show.clust.cent = F, ellipse.type="norm")
+tt=table(y, mx$classification)
+print(tt)
+print(sum(apply(tt, 2, max))/sum(tt))
+tt=as.data.frame(melt(tt))
+tt$y=factor(tt$y)
+tt$Var2=factor(tt$Var2)
+a=ggplot(tt, aes(x=Var2, y=y))+geom_tile(aes(fill=value))+geom_text(aes(label = value)) +scale_fill_gradient(low = "white", high = "red")
+
+kc=kmeans(x, 4, iter.max=100, algorithm='Lloyd')
+tt=table(y, kc$cluster)
+tt=as.data.frame(melt(tt))
+tt$y=factor(tt$y)
+tt$Var2=factor(tt$Var2)
+b=ggplot(tt, aes(x=Var2, y=y))+geom_tile(aes(fill=value))+geom_text(aes(label = value)) +scale_fill_gradient(low = "white", high = "red")
+
+tt=table(y, cutree(hc_aver, k=4))
+tt=as.data.frame(melt(tt))
+tt$y=factor(tt$y)
+tt$Var2=factor(tt$Var2)
+c=ggplot(tt, aes(x=Var2, y=y))+geom_tile(aes(fill=value))+geom_text(aes(label = value)) +scale_fill_gradient(low = "white", high = "red")
+grid.arrange(a,b,c,ncol=2)
+```

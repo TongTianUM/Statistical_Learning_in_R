@@ -1,0 +1,62 @@
+\documentclass{article}
+
+\begin{document}
+
+<<tt,include=T>>=
+dat=read.table("heightWeightData.txt")
+names(dat)=c("gender","height","weight")
+male=dat[which(dat[,1]==1),2:3]
+co=cov(male)
+mn=as.vector(sapply(male,mean))
+library(mixtools)
+library(ggplot2)
+library(MASS)
+#ggplot(male,aes(x=height,y=weight))+geom_text(aes(label=rownames(male)),check_overlap =FALSE)+geom_contour(data=a)
+simu=as.data.frame(ellipse(mu=mn,sigma=co,alpha=0.05,npoints = 500,draw=F))
+names(simu)=c("height","weight")
+ggplot()+geom_text(data=male,aes(label=rownames(male),x=height,y=weight))+geom_path(data=simu,aes(x=height,y=weight))
+
+stmale=as.data.frame(scale(male))
+simu=as.data.frame(ellipse(mu=0,cov(stmale),alpha=0.05,npoints = 500,draw=F))
+names(simu)=c("height","weight")
+ggplot()+geom_text(data=stmale,aes(label=rownames(stmale),x=height,y=weight))+geom_path(data=simu,aes(x=height,y=weight))
+
+decom=eigen(t(scale(male,T,F)) %*% scale(male,T,F))
+newmale=diag(decom$values^(-1/2)) %*% t(decom$vectors) %*% t(as.matrix(male))
+newmale=as.data.frame(scale(t(newmale)),T,F)
+names(newmale)=c("height","weight")
+simu=as.data.frame(ellipse(apply(newmale,2,mean),cov(newmale),alpha=0.05,npoints = 500,draw=F))
+names(simu)=c("height","weight")
+ggplot()+geom_text(data=newmale,aes(label=rownames(stmale),x=height,y=weight))+geom_path(data=simu,aes(x=height,y=weight))
+
+dat=read.table("crabs.txt",header = T)
+library(GGally)
+datt=dat
+datt$Species=factor(datt$Species)
+datt$Sex=factor(datt$Sex)
+ggpairs(datt,diag=list(continuous="barDiag"),upper = list(continuous = "points"),lower =list(continuous = "points"))
+pca1=princomp(dat[,3:7],cor=T)
+loadings(pca1)[,1:3]
+qplot(x = pca1$scores[,1], y=pca1$scores[,2])+geom_text(aes(label=dat[,2]))
+pca2=princomp(dat[,3:7],cor=F)
+loadings(pca2)[,1:3]
+qplot(x = pca2$scores[,1], y=pca2$scores[,2])+geom_text(aes(label=dat[,2]))
+#choose correlation, sexes are divided
+summary(pca1)
+barplot(pca1$sdev^2)
+#retain 3 variables for precision of prediction
+bs=c()
+for(i in seq(500)){
+  newdat=dat[sample(seq(dim(dat)[1]),dim(dat)[1],replace = T),3:7]
+  pca=princomp(newdat,cor=T)
+  perc=pca$sdev^2/sum(pca$sdev^2)
+  bs[i]=sum(perc[1:2])
+}
+ci=quantile(bs,c(0.025,0.975))
+ci
+library(ggbiplot)
+ggbiplot(pca1)
+@
+
+
+\end{document}
